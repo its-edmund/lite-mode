@@ -8,6 +8,7 @@ export default function Editor() {
   const [cursorCoords, setCursorCoords] = useState({ left: 0, top: 0 });
   const [charSize, setCharSize] = useState({ width: 0, height: 0 });
   const editorRef = useRef(null);
+  const cursorRef = useRef(null);
 
   const calculateLines = (text) => text.split("\n");
 
@@ -26,6 +27,11 @@ export default function Editor() {
     document.body.removeChild(measure);
   }, []);
 
+  useEffect(() => {
+    console.log(cursorCoords);
+    updateCursor();
+  }, [cursorCoords, mode]);
+
   // Track cursor position
   const updateCursor = useCallback(() => {
     const selection = window.getSelection();
@@ -36,18 +42,34 @@ export default function Editor() {
     const editorRect = editorRef.current.getBoundingClientRect();
 
     if (cursorRef.current) {
-      cursorRef.current.style.left = `${rect.left - editorRect.left}px`;
-      cursorRef.current.style.top = `${rect.top - editorRect.top}px`;
+      cursorRef.current.style.height = `${charSize.height}px`;
+      cursorRef.current.style.width = `${charSize.width}px`;
+      cursorRef.current.style.left = `${rect.left - editorRect.left + cursorCoords.left * charSize.width}px`;
+      cursorRef.current.style.top = `${rect.top - editorRect.top + cursorCoords.top * charSize.height}px`;
       cursorRef.current.style.display = mode === "normal" ? "block" : "none";
     }
   }, [mode]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
-      if (mode === "normal" && e.key === "i") {
-        setMode("insert");
+      if (mode === "normal") {
         e.preventDefault();
-        setTimeout(() => editorRef.current?.focus(), 0);
+        switch (e.key) {
+          case "i":
+            setMode("insert");
+            setTimeout(() => editorRef.current?.focus(), 0);
+            break;
+          case "h":
+            setCursorCoords((old) => {
+              return { left: old.left - 1, top: old.top };
+            });
+            break;
+          case "l":
+            setCursorCoords((old) => {
+              return { left: old.left + 1, top: old.top };
+            });
+            break;
+        }
       } else if (mode === "insert" && e.key === "Escape") {
         setMode("normal");
         e.preventDefault();
@@ -69,17 +91,10 @@ export default function Editor() {
       >
         {content}
       </div>
-      {mode === "normal" && (
-        <div
-          className="absolute pointer-events-none z-2 bg-white"
-          style={{
-            left: `${cursorCoords.left}px`,
-            top: `${cursorCoords.top}px`,
-            width: `${charSize.width}px`,
-            height: `${charSize.height}px`,
-          }}
-        />
-      )}
+      <div
+        className="absolute pointer-events-none z-2 bg-white"
+        ref={cursorRef}
+      />
       <div className="status-bar">Mode: {mode.toUpperCase()}</div>
     </div>
   );
